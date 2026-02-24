@@ -25,16 +25,20 @@ def run_command(cmd, shell=False):
         raise
 
 class MRCSettingsWindow(tk.Tk):
-    def __init__(self, defaults):
+    def __init__(self, defaults: Dict[str, Any]):
         super().__init__()
         self.title("MRC Compression Settings")
         self.geometry("400x520")
-        self.result = None
+        self.result: Optional[Dict[str, Any]] = None
         
         # Bring to front
         self.lift()
         self.attributes('-topmost', True)
-        self.after(100, lambda: self.attributes('-topmost', False))
+        
+        def _clear_topmost(*args: Any) -> None:
+            self.attributes('-topmost', False)
+        
+        self.after(200, _clear_topmost)
         self.focus_force()
 
         # Vars
@@ -130,13 +134,13 @@ def get_input_and_settings():
     app = MRCSettingsWindow(defaults)
     app.mainloop()
     
-    res = app.result
+    res: Optional[Dict[str, Any]] = app.result
     app.destroy()
 
     if res is None:
         return None
         
-    settings = res
+    settings: Dict[str, Any] = res
     settings['input_pdf'] = input_pdf
     return settings
 
