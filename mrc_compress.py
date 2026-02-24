@@ -24,15 +24,18 @@ def run_command(cmd, shell=False):
         # Note: We don't exit here so callers can handle the exception
         raise
 
-class MRCSettingsDialog(tk.Toplevel):
-    def __init__(self, parent, defaults):
-        super().__init__(parent)
+class MRCSettingsWindow(tk.Tk):
+    def __init__(self, defaults):
+        super().__init__()
         self.title("MRC Compression Settings")
-        self.geometry("400x470")
-        self.result: Optional[Dict[str, Any]] = None # Use None to indicate cancellation
+        self.geometry("400x520")
+        self.result = None
         
-        self.transient(parent)
-        self.grab_set()
+        # Bring to front
+        self.lift()
+        self.attributes('-topmost', True)
+        self.after(100, lambda: self.attributes('-topmost', False))
+        self.focus_force()
 
         # Vars
         self.lang_var = tk.StringVar(value=defaults.get('lang', 'eng+ben'))
@@ -47,29 +50,29 @@ class MRCSettingsDialog(tk.Toplevel):
         frame = ttk.Frame(self, padding="20")
         frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(frame, text="OCR Language (e.g. eng+ben):").pack(anchor=tk.W, pady=(5,0))
+        ttk.Label(frame, text="OCR Language (e.g. eng+ben):", font=('Helvetica', 10, 'bold')).pack(anchor=tk.W, pady=(5,0))
         ttk.Entry(frame, textvariable=self.lang_var).pack(fill=tk.X, pady=5)
 
-        ttk.Label(frame, text="Output DPI:").pack(anchor=tk.W, pady=(5,0))
+        ttk.Label(frame, text="Output DPI (Archive uses 400):", font=('Helvetica', 10, 'bold')).pack(anchor=tk.W, pady=(5,0))
         ttk.Entry(frame, textvariable=self.dpi_var).pack(fill=tk.X, pady=5)
 
-        ttk.Label(frame, text="BG Downsample (1-4):").pack(anchor=tk.W, pady=(5,0))
+        ttk.Label(frame, text="BG Downsample (1-4):", font=('Helvetica', 10, 'bold')).pack(anchor=tk.W, pady=(5,0))
         ttk.Entry(frame, textvariable=self.downsample_var).pack(fill=tk.X, pady=5)
 
-        ttk.Label(frame, text="MRC Preset:").pack(anchor=tk.W, pady=(5,0))
+        ttk.Label(frame, text="MRC Preset (2):", font=('Helvetica', 10, 'bold')).pack(anchor=tk.W, pady=(5,0))
         ttk.Entry(frame, textvariable=self.mrc_preset_var).pack(fill=tk.X, pady=5)
 
-        ttk.Label(frame, text="MRC Threshold:").pack(anchor=tk.W, pady=(5,0))
+        ttk.Label(frame, text="MRC Threshold (10):", font=('Helvetica', 10, 'bold')).pack(anchor=tk.W, pady=(5,0))
         ttk.Entry(frame, textvariable=self.threshold_var).pack(fill=tk.X, pady=5)
 
-        ttk.Checkbutton(frame, text="Use Sauvola Binarization (Better Quality)", variable=self.sauvola_var).pack(anchor=tk.W, pady=5)
-        ttk.Checkbutton(frame, text="Use Two-Pass OCR (Better Accuracy)", variable=self.twopass_var).pack(anchor=tk.W, pady=5)
+        ttk.Checkbutton(frame, text="Use Sauvola Binarization", variable=self.sauvola_var).pack(anchor=tk.W, pady=8)
+        ttk.Checkbutton(frame, text="Use Two-Pass OCR", variable=self.twopass_var).pack(anchor=tk.W, pady=5)
 
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(fill=tk.X, pady=20)
         
         ttk.Button(btn_frame, text="Cancel", command=self.on_cancel).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(btn_frame, text="Start Compression", command=self.on_ok).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(btn_frame, text="Start Processing", command=self.on_ok).pack(side=tk.RIGHT, padx=5)
 
     def on_ok(self):
         try:
@@ -82,26 +85,35 @@ class MRCSettingsDialog(tk.Toplevel):
                 'sauvola': self.sauvola_var.get(),
                 'twopass': self.twopass_var.get()
             }
-            self.destroy()
+            print("Settings confirmed.")
+            self.quit()
         except ValueError:
-            messagebox.showerror("Input Error", "Please enter valid numbers for DPI, Downsample, Preset, and Threshold.")
+            messagebox.showerror("Error", "DPI, Downsample, etc. must be integers.")
 
     def on_cancel(self):
+        print("Settings cancelled.")
         self.result = None
-        self.destroy()
+        self.quit()
 
 def get_input_and_settings():
     """Gather input file and settings from user via GUI."""
-    root = tk.Tk()
-    root.withdraw()
-
-    # 1. Select Input File
+    # 1. Select Input File (using a temporary hidden root)
+    temp_root = tk.Tk()
+    temp_root.withdraw()
+    temp_root.update()
+    
+    print("Waiting for file selection window...")
     input_pdf = filedialog.askopenfilename(
+        parent=temp_root,
         title="Select Scanned PDF to Compress",
         filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")]
     )
+    temp_root.destroy()
+    
     if not input_pdf:
         return None
+
+    print(f"File selected: {input_pdf}")
 
     # 2. Configure Settings
     defaults = {
@@ -114,10 +126,13 @@ def get_input_and_settings():
         'twopass': False
     }
     
-    dialog = MRCSettingsDialog(root, defaults)
-    root.wait_window(dialog)
+    print("Launching settings window...")
+    app = MRCSettingsWindow(defaults)
+    app.mainloop()
     
-    res = dialog.result
+    res = app.result
+    app.destroy()
+
     if res is None:
         return None
         
