@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['bipmrcocr_wrapper.py'],
+    ['windows\\bipmrcocr_wrapper.py'],
     pathex=[],
     binaries=[],
     datas=[],
